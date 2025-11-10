@@ -1,2 +1,2 @@
-pub mod v1_routes;
-pub use v1_routes::*;
+pub mod v1_controllers;
+pub use v1_controllers::*;

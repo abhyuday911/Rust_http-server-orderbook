@@ -12,6 +12,7 @@ use crate::controllers::{index, sign_up};
 pub struct User {
     name: String,
     password: String,
+    age: u8,
 }
 // we need this here so throughout heaven and earth all threads are able to access this
 #[derive(Clone)]
@@ -21,12 +22,13 @@ pub struct AppState {
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    let state = AppState {
+    let state = web::Data::new(AppState {
         users: Arc::new(Mutex::new(HashMap::new())),
-    };
+    });
 
-    HttpServer::new(|| {
+    HttpServer::new(move || {
         App::new()
+            .app_data(state.clone())
             .route("/", web::get().to(index))
             .route("/signup", web::post().to(sign_up))
     })
