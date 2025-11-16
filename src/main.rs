@@ -4,8 +4,9 @@ use actix_web::{
 };
 use serde::{Deserialize, Serialize};
 use std::{
+    cmp::Reverse,
     collections::{BTreeMap, HashMap},
-    sync::{Arc},
+    sync::Arc,
 };
 use tokio::sync::{Mutex, mpsc};
 
@@ -81,7 +82,7 @@ pub enum OrderAction {
 
 #[derive(Clone, Debug)]
 pub struct OrderBook {
-    bids: BTreeMap<u64, Vec<Order>>,
+    bids: BTreeMap<Reverse<u64>, Vec<Order>>,
     asks: BTreeMap<u64, Vec<Order>>,
     next_order_id: u32,
 }
