@@ -11,7 +11,7 @@ use std::{
 use tokio::sync::{Mutex, mpsc};
 
 use crate::{
-    controllers::v1::{create_limit_order, index, sign_in, sign_up},
+    controllers::v1::{create_limit_order, get_orderbook, index, sign_in, sign_up},
     engine::run_engine,
 };
 pub mod engine;
@@ -32,7 +32,7 @@ pub struct User {
 pub struct AppState {
     users: Arc<Mutex<HashMap<String, User>>>, // hashmap will have key of usename and value will be user details
     session_ids: Arc<Mutex<HashMap<String, String>>>,
-    trades_sender: mpsc::Sender<Order>, // type of order.
+    trades_sender: mpsc::Sender<OrderRequest>, // type of order.
     order_book: Arc<Mutex<OrderBook>>, // arc & mutex -> just in case some other api tries to mutate
 }
 
@@ -59,6 +59,7 @@ async fn main() -> std::io::Result<()> {
             .route("/signup", web::post().to(sign_up))
             .route("/signin", web::post().to(sign_in))
             .route("/create_limit_order", web::post().to(create_limit_order))
+            .route("/get_orderbook", web::get().to(get_orderbook))
     })
     .bind(("127.0.0.1", 8080))?
     .run()
@@ -68,10 +69,32 @@ async fn main() -> std::io::Result<()> {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Order {
     user_id: String,
-    amount: u8,
+    amount: u16,
     asset: String,
     price: u64,
-    order_action: OrderAction,
+    side: OrderAction,
+    order_kind: OrderKind,
+    order_id: u32,
+}
+
+impl Order {
+    fn from_request(req: OrderRequest, order_id: u32) -> Self {
+        Order {
+            order_id,
+            amount: req.amount,
+            asset: req.asset,
+            price: req.price,
+            side: req.side,
+            order_kind: req.order_kind,
+            user_id: req.user_id,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum OrderKind {
+    Market,
+    Limit,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -80,11 +103,19 @@ pub enum OrderAction {
     Sell,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct OrderBook {
     bids: BTreeMap<Reverse<u64>, Vec<Order>>,
     asks: BTreeMap<u64, Vec<Order>>,
     next_order_id: u32,
 }
 
-pub struct OrderRequest {}
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OrderRequest {
+    user_id: String,
+    amount: u16,
+    asset: String,
+    price: u64,
+    side: OrderAction,
+    order_kind: OrderKind,
+}

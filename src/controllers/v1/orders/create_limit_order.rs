@@ -4,16 +4,16 @@ use actix_web::{
 };
 use serde_json::json;
 
-use crate::{AppState, Order, OrderAction};
+use crate::{AppState, OrderAction, OrderRequest};
 
 pub async fn create_limit_order(
     state: web::Data<AppState>,
-    order: web::Json<Order>,
+    order: web::Json<OrderRequest>,
 ) -> impl Responder {
     let sender = state.trades_sender.clone();
     let order = order.into_inner();
 
-    match order.order_action {
+    match order.side {
         OrderAction::Buy => println!("its of type Buy"),
         OrderAction::Sell => println!("its of sell type"),
     }

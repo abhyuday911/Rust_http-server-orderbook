@@ -27,11 +27,11 @@
 current: 
     mpsc done and data is transmitted to engine from routes 
     
-what needs to be done: 
-    [] now create order & order struct
-    [x] create orderBook state and send throughout the routes / maybe just send it to the engine?
+    create order & order struct
+
+    create orderBook state and send throughout the routes / send it to the engine?
     
-    [] the engine mutates the value in the order-book (on what basis/structure, we shall decide)
+    the engine mutates the value in the order-book
     
 
 
@@ -41,9 +41,11 @@ what needs to be done:
 
 next hurdle:
     
+    it seems market_orders don't go into the btreeMap (do more research on how they should be dealt with)
+
+    User balances and orderbook stored in a saparate thread in a variable (research more on this and why this way)
+ 
     
-
-
  -->
 
 
