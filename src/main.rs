@@ -8,7 +8,7 @@ use std::{
     collections::{BTreeMap, HashMap},
     sync::Arc,
 };
-use tokio::sync::{Mutex, mpsc};
+use tokio::sync::{Mutex, mpsc, oneshot};
 
 use crate::{
     controllers::v1::{create_limit_order, get_orderbook, index, sign_in, sign_up},
@@ -32,8 +32,14 @@ pub struct User {
 pub struct AppState {
     users: Arc<Mutex<HashMap<String, User>>>, // hashmap will have key of usename and value will be user details
     session_ids: Arc<Mutex<HashMap<String, String>>>,
-    trades_sender: mpsc::Sender<OrderRequest>, // type of order.
+    trades_sender: mpsc::Sender<LimitOrderEngineMessage>, // type of order. // send oneshot receiver as well
     order_book: Arc<Mutex<OrderBook>>, // arc & mutex -> just in case some other api tries to mutate
+}
+
+#[derive(Debug)]
+pub struct LimitOrderEngineMessage {
+    payload: OrderRequest,
+    engine_oneshot_sender: oneshot::Sender<u32>,
 }
 
 #[actix_web::main]
