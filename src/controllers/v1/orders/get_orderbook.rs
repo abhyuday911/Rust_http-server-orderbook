@@ -9,5 +9,5 @@ pub async fn get_orderbook(state: web::Data<AppState>) -> impl Responder {
     dbg!(&order_book.asks);
     dbg!(&order_book.bids);
     dbg!(&order_book.next_order_id);
-    HttpResponse::Ok().json(json!({"bids": order_book.bids, "asks": order_book.asks}))
+    HttpResponse::Ok().json(json!({"bids": order_book.bids, "asks": order_book.asks, "next order id": order_book.next_order_id}))
 }

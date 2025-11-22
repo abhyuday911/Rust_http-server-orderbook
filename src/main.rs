@@ -1,6 +1,6 @@
 use actix_web::{
     App, HttpServer,
-    web::{self},
+    web::{self, get, post},
 };
 use serde::{Deserialize, Serialize};
 use std::{
@@ -11,7 +11,9 @@ use std::{
 use tokio::sync::{Mutex, mpsc, oneshot};
 
 use crate::{
-    controllers::v1::{create_limit_order, get_orderbook, index, sign_in, sign_up},
+    controllers::v1::{
+        create_limit_order, create_market_order, get_orderbook, index, sign_in, sign_up,
+    },
     engine::run_engine,
 };
 pub mod engine;
@@ -32,12 +34,12 @@ pub struct User {
 pub struct AppState {
     users: Arc<Mutex<HashMap<String, User>>>, // hashmap will have key of usename and value will be user details
     session_ids: Arc<Mutex<HashMap<String, String>>>,
-    trades_sender: mpsc::Sender<LimitOrderEngineMessage>, // type of order. // send oneshot receiver as well
+    trades_sender: mpsc::Sender<EngineMessage>, // type of order. // send oneshot receiver as well
     order_book: Arc<Mutex<OrderBook>>, // arc & mutex -> just in case some other api tries to mutate
 }
 
 #[derive(Debug)]
-pub struct LimitOrderEngineMessage {
+pub struct EngineMessage {
     payload: OrderRequest,
     engine_oneshot_sender: oneshot::Sender<u32>,
 }
@@ -61,11 +63,12 @@ async fn main() -> std::io::Result<()> {
     HttpServer::new(move || {
         App::new()
             .app_data(state.clone())
-            .route("/", web::get().to(index))
-            .route("/signup", web::post().to(sign_up))
-            .route("/signin", web::post().to(sign_in))
-            .route("/create_limit_order", web::post().to(create_limit_order))
-            .route("/get_orderbook", web::get().to(get_orderbook))
+            .route("/", get().to(index))
+            .route("/signup", post().to(sign_up))
+            .route("/signin", post().to(sign_in))
+            .route("/create_limit_order", post().to(create_limit_order))
+            .route("/create_market_order", post().to(create_market_order))
+            .route("/get_orderbook", get().to(get_orderbook))
     })
     .bind(("127.0.0.1", 8080))?
     .run()
@@ -77,7 +80,7 @@ pub struct Order {
     user_id: String,
     amount: u16,
     asset: String,
-    price: u64,
+    price: Option<u64>, // market order dosen't have buy/sell price.
     side: OrderAction,
     order_kind: OrderKind,
     order_id: u32,
@@ -89,7 +92,7 @@ impl Order {
             order_id,
             amount: req.amount,
             asset: req.asset,
-            price: req.price,
+            price: Some(req.price),
             side: req.side,
             order_kind: req.order_kind,
             user_id: req.user_id,

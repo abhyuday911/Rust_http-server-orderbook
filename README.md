@@ -37,14 +37,36 @@ current:
 
 -->
 
+
+<!-- 
+    current tasks: 
+        just settle the market order (jitna hi ho)
+            - think about the replying back later
+ -->
+
 <!-- 
 
-next hurdle:
+next:
     
-    it seems market_orders don't go into the btreeMap (do more research on how they should be dealt with)
+    Middleware to look-up user credibility.  
 
-    User balances and orderbook stored in a saparate thread in a variable (research more on this and why this way)
- 
+    Make engine reply enum with respect to which the route will send Ok() / Conflict() / InternalServerError() according to the reply from the engine.
+
+    MarketOrder {
+        partially fullfilled (bought x quantity -> with y amount of money),
+        rejected (no offers found to be traded)
+        completely fullfilled (order fullfilled -> total money spent y)
+    }
+
+    What would happen if the engine fulfills half of em and shuts down mid-way.
+
+    Update the user details {
+        current limit orders: [order-ids],
+        current hold of assets {
+            btc : 5,
+            doge: 6
+        }
+    }
     
  -->
 

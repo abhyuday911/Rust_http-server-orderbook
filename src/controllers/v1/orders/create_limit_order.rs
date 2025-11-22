@@ -5,7 +5,7 @@ use actix_web::{
 use serde_json::json;
 use tokio::sync::oneshot;
 
-use crate::{AppState, LimitOrderEngineMessage, OrderAction, OrderRequest};
+use crate::{AppState, EngineMessage, OrderAction, OrderRequest};
 
 pub async fn create_limit_order(
     state: web::Data<AppState>,
@@ -21,20 +21,20 @@ pub async fn create_limit_order(
         OrderAction::Sell => println!("its of sell type"),
     }
 
-    let msg = LimitOrderEngineMessage {
+    let msg = EngineMessage {
         payload: order,
         engine_oneshot_sender: os_sender,
     };
 
     if let Err(_) = trade_sender.send(msg).await {
         println!("receiver fropped");
-        return HttpResponse::Conflict()
-            .json(json!({"error": "something went wrong order not placed"}));
+        return HttpResponse::InternalServerError()
+            .json(json!({"message": "something went wrong order not placed"}));
     };
 
     match os_receiver.await {
         Ok(v) => HttpResponse::Ok().json(json!({"orderId": v})),
-        Err(_) => HttpResponse::Conflict()
+        Err(_) => HttpResponse::InternalServerError()
             .json(json!({"message": "aji dikkat aagyi, oneshot receiver failed"})),
     }
 }
