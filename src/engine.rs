@@ -14,10 +14,10 @@ pub async fn run_engine(
 
         match msg.payload.order_kind {
             OrderKind::Market => {
+                let mut qty = msg.payload.amount;
+
                 match msg.payload.side {
                     OrderAction::Buy => {
-                        let mut qty = msg.payload.amount;
-
                         while qty > 0 {
                             let price_level_option = book.asks.keys().next().cloned();
                             let price_level = match price_level_option {
@@ -25,14 +25,11 @@ pub async fn run_engine(
                                 None => break,
                             };
 
-                            if qty > 0 && book.asks[&price_level].is_empty() {
-                                book.asks.remove(&price_level);
-                            }
-
                             match book.asks.iter_mut().next() {
                                 Some(val) => {
                                     let (price_level, orders_at_the_level) = val;
 
+                                    // I think should put this below block of removing the arder from vec;
                                     if orders_at_the_level.is_empty() {
                                         let _ = dbg!(&book);
                                         println!(
@@ -40,6 +37,7 @@ pub async fn run_engine(
                                         );
                                         break;
                                     };
+                                    // this guy ⬆️
 
                                     println!(
                                         "current best level {} and the order array is {}",
@@ -63,16 +61,56 @@ pub async fn run_engine(
                                     )
                                 }
                             }
+
+                            if qty > 0 && book.asks[&price_level].is_empty() {
+                                book.asks.remove(&price_level);
+                            }
                             println!("quantity in while loop for the time {}", qty);
                             dbg!(&book);
                         }
                     }
                     OrderAction::Sell => {
-                        print!("hello from market sell");
+                        while qty > 0 {
+                            let best_price_option = book.bids.keys().next().cloned();
+                            let best_price = match best_price_option {
+                                Some(v) => v,
+                                None => break,
+                            };
+
+                            match book.bids.iter_mut().next() {
+                                Some(val) => {
+                                    let (_, orders_at_level) = val;
+
+                                    if orders_at_level[0].amount > qty {
+                                        orders_at_level[0].amount -= qty;
+                                        qty = 0;
+                                    } else {
+                                        qty -= orders_at_level[0].amount;
+                                        orders_at_level.remove(0);
+                                    }
+                                }
+                                None => {
+                                    println!("dekho bhai aaisa hai apka order nhi de rhe hm ab")
+                                }
+                            }
+
+                            if qty > 0 && book.bids[&best_price].is_empty() {
+                                book.bids.remove(&best_price);
+                            }
+                            println!("quantity in current iteration {}", qty);
+                            dbg!(&book);
+                        }
                     }
                 }
                 tokio::spawn(async move {
-                    if let Err(_) = msg.engine_oneshot_sender.send(911) {
+                    let send_value;
+                    if qty > 0 {
+                        send_value = qty
+                    } else {
+                        send_value = 911;
+                    }
+
+                    if let Err(_) = msg.engine_oneshot_sender.send(send_value as u32) {
                         println!("receiver dropped");
                     }
                 });

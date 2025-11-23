@@ -32,7 +32,7 @@ pub async fn create_market_order(
     }
 
     match os_receiver.await {
-        Ok(order_id) => HttpResponse::Ok().json(json!({"orderId" : order_id})),
+        Ok(message) => HttpResponse::Ok().json(json!({"message" : message})),
         Err(_) => HttpResponse::InternalServerError()
             .json(json!({ "message" : "didn't receive anything from oneshot"})),
     }
