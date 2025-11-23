@@ -1,9 +1,21 @@
 use crate::{EngineMessage, Order, OrderAction, OrderBook, OrderKind};
+use serde::Serialize;
 use serde_json::to_string_pretty;
 use std::{cmp::Reverse, sync::Arc};
 use tokio::sync::{Mutex, mpsc};
 
 // this file seems to have a lot of redundancy.
+
+#[derive(Debug, Serialize)]
+pub enum EngineReply {
+    // market order reply cases.
+    PartiallySettled(u16, u32), // qty and average price for it.
+    FullySettled(u16, u32),     // qty   // average price
+    CompletelyRejected,
+
+    // limit order cases
+    AddedToOrderBook(u32),
+}
 
 pub async fn run_engine(
     mut receiver: mpsc::Receiver<EngineMessage>,
@@ -14,22 +26,26 @@ pub async fn run_engine(
 
         match msg.payload.order_kind {
             OrderKind::Market => {
-                let mut qty = msg.payload.amount;
+                let mut qty = msg.payload.amount.clone();
 
                 match msg.payload.side {
                     OrderAction::Buy => {
                         while qty > 0 {
+                            dbg!("inside the buy order");
+
                             let price_level_option = book.asks.keys().next().cloned();
                             let price_level = match price_level_option {
                                 Some(val) => val,
+                                // reply here
                                 None => break,
                             };
-
+                            dbg!("indie teh buy order");
                             match book.asks.iter_mut().next() {
                                 Some(val) => {
                                     let (price_level, orders_at_the_level) = val;
-
+                                    dbg!("inside the match of the case some");
                                     // I think should put this below block of removing the arder from vec;
+                                    // is this even possible based on the way the code has been written
                                     if orders_at_the_level.is_empty() {
                                         let _ = dbg!(&book);
                                         println!(
@@ -103,14 +119,17 @@ pub async fn run_engine(
                     }
                 }
                 tokio::spawn(async move {
-                    let send_value;
-                    if qty > 0 {
-                        send_value = qty
+                    let reply;
+
+                    if qty == 0 {
+                        reply = EngineReply::FullySettled(msg.payload.amount, 000)
+                    } else if qty < msg.payload.amount {
+                        reply = EngineReply::PartiallySettled(msg.payload.amount - qty, 0000)
                     } else {
-                        send_value = 911;
+                        reply = EngineReply::CompletelyRejected
                     }
 
-                    if let Err(_) = msg.engine_oneshot_sender.send(send_value as u32) {
+                    if let Err(_) = msg.engine_oneshot_sender.send(reply) {
                         println!("receiver dropped");
                     }
                 });
@@ -133,7 +152,10 @@ pub async fn run_engine(
                     }
                 }
                 tokio::spawn(async move {
-                    if let Err(_) = msg.engine_oneshot_sender.send(order_id) {
+                    if let Err(_) = msg
+                        .engine_oneshot_sender
+                        .send(EngineReply::AddedToOrderBook(order_id))
+                    {
                         println!("receiver dropped");
                     }
                 });

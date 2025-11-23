@@ -67,6 +67,29 @@ next:
             doge: 6
         }
     }
+
+    // engine reply enum cases {
+        market order cases: 
+            pariallly settle market order {
+                bought/sold x amount for y amount of money
+            }
+            fully settled market order{
+                full settled for average of y amount of money
+            }
+            no trade found to settle the order {
+                sorry can't fulfill the order -> no trades found
+            }
+
+        limit order case: 
+            order put in the order-book{
+                message: "order placed in the order book"
+                order_id: 90022
+            }
+
+
+
+
+    }
     
  -->
 

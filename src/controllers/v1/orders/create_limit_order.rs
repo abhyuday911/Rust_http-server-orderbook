@@ -5,7 +5,7 @@ use actix_web::{
 use serde_json::json;
 use tokio::sync::oneshot;
 
-use crate::{AppState, EngineMessage, OrderAction, OrderRequest};
+use crate::{AppState, EngineMessage, OrderAction, OrderRequest, engine::EngineReply};
 
 pub async fn create_limit_order(
     state: web::Data<AppState>,
@@ -33,7 +33,13 @@ pub async fn create_limit_order(
     };
 
     match os_receiver.await {
-        Ok(v) => HttpResponse::Ok().json(json!({"orderId": v})),
+        Ok(v) => match v {
+            EngineReply::AddedToOrderBook(order_id) => HttpResponse::Ok().json(
+                json!({"message" : "Order has been added to the order-book","orderId": order_id}),
+            ),
+            _ => HttpResponse::Ok()
+                .json(json!({"Message": "Something out of the expectation happened"})),
+        },
         Err(_) => HttpResponse::InternalServerError()
             .json(json!({"message": "aji dikkat aagyi, oneshot receiver failed"})),
     }

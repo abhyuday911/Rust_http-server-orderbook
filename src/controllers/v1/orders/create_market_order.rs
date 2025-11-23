@@ -2,7 +2,7 @@ use actix_web::{HttpResponse, Responder, web};
 use serde_json::json;
 use tokio::sync::oneshot;
 
-use crate::{AppState, EngineMessage, OrderKind, OrderRequest};
+use crate::{AppState, EngineMessage, OrderKind, OrderRequest, engine::EngineReply};
 
 pub async fn create_market_order(
     order: web::Json<OrderRequest>,
@@ -20,7 +20,7 @@ pub async fn create_market_order(
         }
     }
 
-    let (os_sender, os_receiver) = oneshot::channel();
+    let (os_sender, os_receiver) = oneshot::channel::<EngineReply>();
     let msg = EngineMessage {
         payload: order,
         engine_oneshot_sender: os_sender,
@@ -32,7 +32,19 @@ pub async fn create_market_order(
     }
 
     match os_receiver.await {
-        Ok(message) => HttpResponse::Ok().json(json!({"message" : message})),
+        // if received type is under teh engineReply category
+        Ok(message) => {
+            match message {
+                EngineReply::PartiallySettled(qty, _) => HttpResponse::Ok()
+                    .json(json!({"message" : "Order Partially settled", "settled_quantity": qty})),
+                EngineReply::FullySettled(qty, _average_price) => HttpResponse::Ok()
+                    .json(json!({"message" : "Order Completely Settled", "settled_quantity": qty, "average price": "future feature"})),
+                EngineReply::CompletelyRejected => {
+                    HttpResponse::Ok().json(json!({"message" : "Sorry coudn't fulfill your order, no corresponding trades found"}))
+                }
+                _ => HttpResponse::InternalServerError().json(json!({"message" : "Bhai kuch to babal hogya yha tk bat aani nhi chaiye thi market order me"})),
+            }
+        }
         Err(_) => HttpResponse::InternalServerError()
             .json(json!({ "message" : "didn't receive anything from oneshot"})),
     }

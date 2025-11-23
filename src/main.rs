@@ -14,7 +14,7 @@ use crate::{
     controllers::v1::{
         create_limit_order, create_market_order, get_orderbook, index, sign_in, sign_up,
     },
-    engine::run_engine,
+    engine::{EngineReply, run_engine},
 };
 pub mod engine;
 
@@ -41,7 +41,7 @@ pub struct AppState {
 #[derive(Debug)]
 pub struct EngineMessage {
     payload: OrderRequest,
-    engine_oneshot_sender: oneshot::Sender<u32>,
+    engine_oneshot_sender: oneshot::Sender<EngineReply>,
 }
 
 #[actix_web::main]
