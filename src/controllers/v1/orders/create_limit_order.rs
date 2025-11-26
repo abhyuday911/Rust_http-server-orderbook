@@ -37,6 +37,12 @@ pub async fn create_limit_order(
             EngineReply::AddedToOrderBook(order_id) => HttpResponse::Ok().json(
                 json!({"message" : "Order has been added to the order-book","orderId": order_id}),
             ),
+            EngineReply::PartiallySettled(settled_qty, _) => HttpResponse::Ok().json(
+                json!({"message": "Order Partially Settled", "settled quantity": settled_qty}),
+            ),
+            EngineReply::ImmeadiatelySettled => {
+                HttpResponse::Ok().json(json!({"message": "order completely settled"}))
+            }
             _ => HttpResponse::Ok()
                 .json(json!({"Message": "Something out of the expectation happened"})),
         },

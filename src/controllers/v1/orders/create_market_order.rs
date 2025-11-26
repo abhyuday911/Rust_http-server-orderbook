@@ -38,7 +38,7 @@ pub async fn create_market_order(
                 EngineReply::PartiallySettled(qty, _) => HttpResponse::Ok()
                     .json(json!({"message" : "Order Partially settled", "settled_quantity": qty})),
                 EngineReply::FullySettled(qty, _average_price) => HttpResponse::Ok()
-                    .json(json!({"message" : "Order Completely Settled", "settled_quantity": qty, "average price": "future feature"})),
+                    .json(json!({"message" : "Order Completely Settled", "settled_quantity": qty})),
                 EngineReply::CompletelyRejected => {
                     HttpResponse::Ok().json(json!({"message" : "Sorry coudn't fulfill your order, no corresponding trades found"}))
                 }

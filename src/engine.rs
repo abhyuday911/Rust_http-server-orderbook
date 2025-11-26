@@ -15,13 +15,14 @@ pub enum EngineReply {
 
     // limit order cases
     AddedToOrderBook(u32),
+    ImmeadiatelySettled,
 }
 
 pub async fn run_engine(
     mut receiver: mpsc::Receiver<EngineMessage>,
     order_book: Arc<Mutex<OrderBook>>,
 ) {
-    while let Some(msg) = receiver.recv().await {
+    while let Some(mut msg) = receiver.recv().await {
         let mut book = order_book.lock().await;
 
         match msg.payload.order_kind {
@@ -53,7 +54,7 @@ pub async fn run_engine(
                                         );
                                         break;
                                     };
-                                    // this guy ⬆️
+                                    // this guy ⬆️/
 
                                     println!(
                                         "current best level {} and the order array is {}",
@@ -109,7 +110,7 @@ pub async fn run_engine(
                                     println!("dekho bhai aaisa hai apka order nhi de rhe hm ab")
                                 }
                             }
-
+                            // check this for edge case
                             if qty > 0 && book.bids[&best_price].is_empty() {
                                 book.bids.remove(&best_price);
                             }
@@ -137,25 +138,101 @@ pub async fn run_engine(
             OrderKind::Limit => {
                 book.next_order_id += 1;
                 let order_id = book.next_order_id;
+                let initial_qty = msg.payload.amount.clone();
+                let mut qty = msg.payload.amount.clone();
+
                 match msg.payload.side {
                     OrderAction::Buy => {
-                        book.bids
-                            .entry(Reverse(msg.payload.price))
-                            .or_insert_with(Vec::new)
-                            .push(Order::from_request(msg.payload, order_id));
+                        while qty > 0 {
+                            let best_price_option = book.asks.keys().next().cloned();
+                            let best_price = match best_price_option {
+                                Some(val) => val,
+                                None => break,
+                            };
+
+                            match book.asks.iter_mut().next() {
+                                Some(val) => {
+                                    let (_, orders_at_level) = val;
+
+                                    if orders_at_level[0].amount > qty {
+                                        orders_at_level[0].amount -= qty;
+                                        qty = 0;
+                                    } else {
+                                        qty -= orders_at_level[0].amount;
+                                        orders_at_level.remove(0);
+                                    }
+                                }
+                                None => break,
+                            };
+
+                            if book.asks[&best_price].is_empty() {
+                                println!("168 asks priceleve; remover");
+                                book.asks.remove(&best_price);
+                            }
+                            println!("quantity in current iteration {}", qty);
+                            dbg!(&book);
+                        }
+
+                        if qty > 0 {
+                            msg.payload.amount = qty;
+
+                            book.bids
+                                .entry(Reverse(msg.payload.price))
+                                .or_insert_with(Vec::new)
+                                .push(Order::from_request(msg.payload.clone(), order_id));
+                        }
                     }
                     OrderAction::Sell => {
-                        book.asks
-                            .entry(msg.payload.price)
-                            .or_insert_with(Vec::new)
-                            .push(Order::from_request(msg.payload, order_id));
+                        while qty > 0 {
+                            let best_price_option = book.bids.keys().next().cloned();
+                            let best_price = match best_price_option {
+                                Some(val) => val,
+                                None => break,
+                            };
+
+                            match book.bids.iter_mut().next() {
+                                Some(val) => {
+                                    let (_, orders_at_the_level) = val;
+
+                                    if orders_at_the_level[0].amount > qty {
+                                        orders_at_the_level[0].amount -= qty;
+                                        qty = 0;
+                                    } else {
+                                        qty -= orders_at_the_level[0].amount;
+                                        orders_at_the_level.remove(0);
+                                    }
+                                }
+                                None => break,
+                            };
+                            if book.bids[&best_price].is_empty() {
+                                println!("168 bids priceleve; remover");
+                                book.bids.remove(&best_price);
+                            }
+                            println!("quantity in current iteration {}", qty);
+                            dbg!(&book);
+                        }
+
+                        if qty > 0 {
+                            msg.payload.amount = qty;
+                            book.asks
+                                .entry(msg.payload.price)
+                                .or_insert_with(Vec::new)
+                                .push(Order::from_request(msg.payload.clone(), order_id));
+                        }
                     }
                 }
                 tokio::spawn(async move {
-                    if let Err(_) = msg
-                        .engine_oneshot_sender
-                        .send(EngineReply::AddedToOrderBook(order_id))
-                    {
+                    let reply;
+
+                    if qty == 0 {
+                        reply = EngineReply::ImmeadiatelySettled
+                    } else if qty < msg.payload.amount {
+                        reply = EngineReply::PartiallySettled(initial_qty - qty, 0000)
+                    } else {
+                        reply = EngineReply::AddedToOrderBook(order_id)
+                    }
+
+                    if let Err(_) = msg.engine_oneshot_sender.send(reply) {
                         println!("receiver dropped");
                     }
                 });
